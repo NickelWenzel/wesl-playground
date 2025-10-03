@@ -6,6 +6,8 @@ export type ManglerKind = "escape" | "hash" | "none";
 
 export type Command = ({ command: "Compile" } & CompileOptions) | ({ command: "Eval" } & EvalOptions) | ({ command: "Exec" } & ExecOptions) | ({ command: "Dump" } & DumpOptions);
 
+export type Feature = "enable" | "disable" | "keep" | "error";
+
 export interface CompileOptions {
     files: { [name: string]: string };
     root: string;
@@ -22,7 +24,8 @@ export interface CompileOptions {
     keep?: string[] | undefined;
     keep_root: boolean;
     mangle_root: boolean;
-    features: { [name: string]: boolean };
+    features: { [name: string]: Feature };
+    features_default?: Feature;
 }
 
 export type BindingType = "uniform" | "storage" | "read-only-storage" | "filtering" | "non-filtering" | "comparison" | "float" | "unfilterable-float" | "sint" | "uint" | "depth" | "write-only" | "read-write" | "read-only";

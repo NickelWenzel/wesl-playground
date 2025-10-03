@@ -6,7 +6,7 @@ import { Options, Files, optionsSchema } from './state'
 const urlParams = new URLSearchParams(window.location.search)
 
 export function getLocal<T>(name: string, init: T, schema?: z.Schema<T>): T {
-  const VERSION = '4'
+  const VERSION = '5'
   const version = localStorage.getItem('version')
   const storageItem = localStorage.getItem(name)
 
@@ -145,6 +145,7 @@ export function initOptions(): Options {
     keep: undefined,
     keep_root: true,
     mangle_root: false,
+    features_default: 'Keep',
     features: {},
     // eval args
     runtime: false,

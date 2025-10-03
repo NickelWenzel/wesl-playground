@@ -7,6 +7,8 @@ export const filesSchema = z.array(
   }),
 )
 
+export const featureSchema = z.enum(['enable', 'disable', 'keep', 'error'])
+
 export const optionsSchema = z.object({
   command: z.string(),
   root: z.string(),
@@ -23,10 +25,11 @@ export const optionsSchema = z.object({
   keep: z.array(z.string()).optional(),
   keep_root: z.boolean(),
   mangle_root: z.boolean(),
-  features: z.object({}).catchall(z.boolean()),
+  features: z.record(featureSchema),
+  features_default: featureSchema,
   runtime: z.boolean(),
   expr: z.string(),
-  overrides: z.object({}).catchall(z.string()),
+  overrides: z.record(z.string()),
   binding_structs: z.boolean(),
 })
 

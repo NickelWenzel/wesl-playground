@@ -54,9 +54,10 @@ export async function compileJs(files: Files, options: Options) {
     ),
     rootModuleName: './' + options.root + '.wesl',
     // debugWeslRoot?: string;
-    conditions: options.features,
+    conditions: Object.fromEntries(
+      Object.entries(options.features).map(([k, v]) => [k, v === 'enable']),
+    ),
     // libs?: WgslBundle[];
-    // virtualLibs?: Record<string, VirtualLibraryFn>;
     config: { plugins },
     // constants?: Record<string, string | number>;
     mangler:

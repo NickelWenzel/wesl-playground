@@ -2,22 +2,30 @@ import { Accessor, For, Setter, Show } from 'solid-js'
 import type { Options, Files } from './state'
 import { SetStoreFunction } from 'solid-js/store'
 
-function strFeatures(features: { [name: string]: boolean }): string {
+type Feature = 'enable' | 'disable' | 'keep' | 'error'
+
+function strFeatures(features: Record<string, Feature>): string {
   return Object.entries(features)
-    .map(([name, enabled]) => `${name}=${enabled}`)
+    .map(([name, enabled]) => `${name}=${enabled.toLowerCase()}`)
     .join(', ')
 }
-function parseFeatures(str: string): { [name: string]: boolean } {
+function parseFeatures(str: string): Record<string, Feature> {
   return Object.fromEntries(
     str
       .split(',')
       .map((f) => f.split('=', 2).map((x) => x.trim()))
       .filter((f) => f[0] !== '')
-      .map((f) =>
-        f.length === 1
-          ? [f[0], true]
-          : [f[0], !!f[1] && !['false', '0'].includes(f[1])],
-      ),
+      .map((f) => {
+        const [key, val] = f
+        if (val === undefined) {
+          if (key.startsWith('!')) return [key.substring(1), 'disable']
+          else return [key, 'enable']
+        }
+        if (['disable', 'false', '0'].includes(val)) return [key, 'disable']
+        else if (['enable', 'true', '1'].includes(val)) return [key, 'enable']
+        else if (val === 'keep') return [key, 'keep']
+        else return [key, 'error']
+      }),
   )
 }
 
@@ -224,6 +232,23 @@ export const WeslRsFeatures = (props: OptionsProps) => {
             }))
           }}
         />
+      </label>
+      <label>
+        <span>feature fallback</span>
+        <select
+          value={props.options.features_default}
+          onchange={(e) =>
+            props.setOptions(
+              'features_default',
+              e.currentTarget.value as Feature,
+            )
+          }
+        >
+          <option value="enable">Enable</option>
+          <option value="disable">Disable</option>
+          <option value="keep">Keep</option>
+          <option value="error">Error</option>
+        </select>
       </label>
       <label
         classList={{
