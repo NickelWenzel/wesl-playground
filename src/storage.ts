@@ -145,7 +145,7 @@ export function initOptions(): Options {
     keep: undefined,
     keep_root: true,
     mangle_root: false,
-    features_default: 'Keep',
+    features_default: 'keep',
     features: {},
     // eval args
     runtime: false,

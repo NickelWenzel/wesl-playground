@@ -244,6 +244,7 @@ const LeftPane = () => (
       />
       <Editor
         content={source()}
+        filepath="input.wgsl"
         diagnostics={diagnostics().filter((d) => d.file === files[tab()].name)}
         onchange={setSource}
       />
@@ -266,6 +267,7 @@ const RightPane = () => (
         <Match when={rightTab() === 0}>
           <Editor
             content={output()}
+            filepath="output.wgsl"
             diagnostics={diagnostics().filter((d) => d.file === 'output')}
             readonly
           />

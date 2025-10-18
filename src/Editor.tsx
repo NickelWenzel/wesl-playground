@@ -1,6 +1,6 @@
 import monaco, { editorWorker } from './monaco'
 
-import { createEffect } from 'solid-js'
+import { createEffect, onCleanup } from 'solid-js'
 import { Diagnostic } from './wesl-web/wesl_web'
 import { dark } from './Theme'
 
@@ -18,12 +18,15 @@ createEffect(() => {
 
 interface EditorProps {
   content: string
+  filepath: string
   diagnostics?: Diagnostic[]
   readonly?: true
   onchange?: (content: string) => void
 }
 
 export const Editor = (props: EditorProps) => {
+  let model: monaco.editor.ITextModel
+
   function setupMonaco(elt: HTMLElement) {
     self.MonacoEnvironment = {
       getWorker: function (_workerId, _label) {
@@ -31,8 +34,14 @@ export const Editor = (props: EditorProps) => {
       },
     }
 
+    const uri = monaco.Uri.parse('file:///' + props.filepath)
+    model =
+      monaco.editor.getModel(uri) ??
+      monaco.editor.createModel(props.content, 'wgsl', uri)
+
     const editor = monaco.editor.create(elt, {
-      value: props.content,
+      // value: props.content,
+      model,
       theme: 'theme',
       language: 'wgsl',
       mouseWheelZoom: true,
@@ -40,6 +49,22 @@ export const Editor = (props: EditorProps) => {
       readOnly: props.readonly ?? false,
       renderValidationDecorations: 'on',
     })
+
+    // setup the LSP (wgsl-analyzer)
+    // const transport = createTransportToWorker(new wgslAnalyzerWorker())
+    // TODO: make this configurable.
+    monaco.lsp.WebSocketTransport.connectTo({
+      host: 'wgsl-analyzer.thissma.fr',
+      port: 443,
+      forceTls: true,
+    })
+      .then((transport) => {
+        const client = new monaco.lsp.MonacoLspClient(transport)
+        console.log('initialized lsp', client)
+      })
+      .catch((e) => {
+        console.error('failed to connect to wgsl_analyzer remote lsp', e)
+      })
 
     // keeping track of the editor content avoids calling editor.setValue() when source()
     // changed as a result of editing.
@@ -74,6 +99,10 @@ export const Editor = (props: EditorProps) => {
       monaco.editor.setModelMarkers(model, 'wesl', markers)
     })
   }
+
+  onCleanup(() => {
+    if (model) model.dispose()
+  })
 
   return <div class="editor" ref={setupMonaco}></div>
 }

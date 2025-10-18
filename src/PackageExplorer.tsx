@@ -30,7 +30,7 @@ const FilePreview = (props: { file: string }) => (
         <CloseIcon />
       </button>
     </div>
-    <Editor content={files[props.file]} readonly />
+    <Editor content={files[props.file]} filepath={props.file} readonly />
   </div>
 )
 
