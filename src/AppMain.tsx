@@ -132,8 +132,9 @@ const newFile = () => {
 
 const delFile = (i: number) => {
   const filename = files[i].name
-  alert(`Confirm deletion of ${filename}?`)
-  setFiles((files) => removeIndex(files, i))
+  if (confirm(`Confirm deletion of ${filename}?`)) {
+    setFiles((files) => removeIndex(files, i))
+  }
 }
 
 const renameFile = (i: number, name: string) => {
