@@ -209,7 +209,10 @@ declare class MonacoLspClient {
   private _initPromise;
   constructor(
     transport: IMessageTransport,
-    options?: { rootUri?: string | null },
+    options?: {
+      rootUri?: string | null;
+      workspaceFolders?: { uri: string; name: string }[] | null;
+    },
   );
   private _init;
   protected createFeatures(): IDisposable;

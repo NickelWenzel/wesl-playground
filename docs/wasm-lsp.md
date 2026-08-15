@@ -11,7 +11,8 @@ work. Hover returns nothing — it is an unimplemented stub in wgsl-analyzer its
 (<https://github.com/wgsl-analyzer/wgsl-analyzer/issues/362>), not a bug here.
 
 The server-side reasoning (threads, `-Zbuild-std`, transport) lives in the analyzer repo:
-`wgsl-analyzer/docs/wasm-browser-lsp.md`.
+`wgsl-analyzer/docs/wasm-browser-lsp.md`. Multi-file support and cross-file navigation are
+covered in [`wasm-lsp-multifile.md`](./wasm-lsp-multifile.md).
 
 ---
 
@@ -105,11 +106,12 @@ as the clangd example uses for GitHub Pages) before this ships.
   `vite-plugin-monaco-editor` peer-requires `monaco-editor >=0.33.0`, and the pinned
   `0.55.0-dev-20251018` prerelease does not satisfy a plain semver range. That plugin is
   declared but never used in `vite.config.ts` — removing it would be the real fix.
-- Tab switching still swaps one model's contents rather than switching models, so the server
-  sees a single document. Multi-file / WESL imports are out of scope for this pass.
-- The bundled `src/packages/*.json` library sources (`bevy_wgsl`, `lygia_wgsl`) are not
-  seeded into MEMFS, so the analyzer cannot resolve them.
 - Diagnostics from the LSP use marker owner `lsp`; wesl-rs keeps using `wesl`. They coexist.
+
+Two limits described here were lifted by the follow-up in
+[`wasm-lsp-multifile.md`](./wasm-lsp-multifile.md): tab switching now swaps models rather than
+contents, so the server sees a real multi-file workspace, and the bundled `bevy`/`lygia`
+sources are seeded so their imports resolve.
 
 ## Files
 

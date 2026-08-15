@@ -2161,36 +2161,41 @@ function toMonacoInlayHintKind(kind) {
     monaco.languages.InlayHintKind.Type
   )
 }
+// PLAYGROUND PATCH: upstream resolved every target URI through
+// translateBackRange, which THROWS when the document has no monaco model. That
+// is the normal case for a definition that lands in a bundled package, since
+// those files exist only on the analyzer's virtual disk — and one throw rejects
+// the whole go-to-definition request, including any valid results alongside it.
+// Convert ranges arithmetically and fall back to a plain Uri, letting the
+// registered editor-opener decide whether it can show the target.
+function lspRangeToMonaco(range) {
+  return new monaco.Range(
+    range.start.line + 1,
+    range.start.character + 1,
+    range.end.line + 1,
+    range.end.character + 1,
+  )
+}
+function monacoUriForDocument(uri, client) {
+  const known = client.bridge.tryGetModel(uri)
+  return known ? known.uri : monaco.Uri.parse(uri)
+}
 function toMonacoLocation(location, client) {
   if ('targetUri' in location) {
-    const translatedRange = client.bridge.translateBackRange(
-      { uri: location.targetUri },
-      location.targetRange,
-    )
     return {
-      uri: translatedRange.textModel.uri,
-      range: translatedRange.range,
+      uri: monacoUriForDocument(location.targetUri, client),
+      range: lspRangeToMonaco(location.targetRange),
       originSelectionRange: location.originSelectionRange
-        ? client.bridge.translateBackRange(
-            { uri: location.targetUri },
-            location.originSelectionRange,
-          ).range
+        ? lspRangeToMonaco(location.originSelectionRange)
         : void 0,
       targetSelectionRange: location.targetSelectionRange
-        ? client.bridge.translateBackRange(
-            { uri: location.targetUri },
-            location.targetSelectionRange,
-          ).range
+        ? lspRangeToMonaco(location.targetSelectionRange)
         : void 0,
     }
   } else {
-    const translatedRange = client.bridge.translateBackRange(
-      { uri: location.uri },
-      location.range,
-    )
     return {
-      uri: translatedRange.textModel.uri,
-      range: translatedRange.range,
+      uri: monacoUriForDocument(location.uri, client),
+      range: lspRangeToMonaco(location.range),
     }
   }
 }
@@ -4506,7 +4511,13 @@ var TextDocumentSynchronizer = class extends Disposable {
     // package previews, which would otherwise be opened as workspace files and
     // produce duplicate-symbol noise. Those use the 'wgsl-readonly' language id.
     if (m.getLanguageId() !== 'wgsl') return undefined
-    const uriStr = m.uri.toString(true).toLowerCase()
+    // PLAYGROUND PATCH: upstream lower-cased every URI, which made tab names
+    // like `Main` reach the server as `main` and let two differently-cased tabs
+    // collide on one document. wgsl-analyzer emits URIs unencoded and
+    // case-exact, and playground file stems are restricted to [A-Za-z0-9_],
+    // so the raw form round-trips. All four sites must agree or the reverse
+    // map misses.
+    const uriStr = m.uri.toString(true)
     let mm = this._managedModels.get(m)
     if (!mm) {
       mm = new ManagedModel(m, this._server)
@@ -4520,8 +4531,11 @@ var TextDocumentSynchronizer = class extends Disposable {
     })
     return mm
   }
+  tryGetModel(uri) {
+    return this._managedModelsReverse.get(uri)
+  }
   translateBack(textDocument, position) {
-    const uri = textDocument.uri.toLowerCase()
+    const uri = textDocument.uri
     const textModel = this._managedModelsReverse.get(uri)
     if (!textModel) throw new Error(`No text model for uri ${uri}`)
     return {
@@ -4530,7 +4544,7 @@ var TextDocumentSynchronizer = class extends Disposable {
     }
   }
   translateBackRange(textDocument, range) {
-    const uri = textDocument.uri.toLowerCase()
+    const uri = textDocument.uri
     const textModel = this._managedModelsReverse.get(uri)
     if (!textModel) throw new Error(`No text model for uri ${uri}`)
     return {
@@ -4570,7 +4584,7 @@ var ManagedModel = class extends Disposable {
     super()
     this._textModel = _textModel
     this._api = _api
-    const uri = _textModel.uri.toString(true).toLowerCase()
+    const uri = _textModel.uri.toString(true)
     this._api.textDocumentDidOpen({
       textDocument: {
         languageId: _textModel.getLanguageId(),
@@ -4650,15 +4664,18 @@ var MonacoLspClient = class {
   }
   async _init() {
     // PLAYGROUND PATCH: wgsl-analyzer discovers its workspace (wesl.toml) from
-    // rootUri; with null it finds nothing and answers no requests.
+    // rootUri; with null it finds nothing and answers no requests. workspaceFolders
+    // additionally gates package discovery (is_in_workspace), so the bundled
+    // dependency tree needs its own folder entry.
     const rootUri = this._options.rootUri ?? null
+    const workspaceFolders =
+      this._options.workspaceFolders ??
+      (rootUri ? [{ uri: rootUri, name: 'workspace' }] : null)
     const result = await this._connection.server.initialize({
       processId: null,
       capabilities: this._capabilitiesRegistry.getClientCapabilities(),
       rootUri,
-      workspaceFolders: rootUri
-        ? [{ uri: rootUri, name: 'workspace' }]
-        : null,
+      workspaceFolders,
     })
     this._connection.server.initialized({})
     this._capabilitiesRegistry.setServerCapabilities(result.capabilities)

@@ -11,7 +11,8 @@
 // would block this thread, which also services fd_write and deferred
 // pthread_create. That deadlocks. See crates/wgsl-analyzer/src/bin/wasm_io.rs.
 
-import { WORKSPACE_PATH, WESL_TOML } from './workspace'
+import { WORKSPACE_PATH, WORKSPACE_WESL_TOML } from './workspace'
+import { vendorFiles } from './packages'
 
 // Typed locally rather than via `/// <reference lib="webworker" />`, which would
 // pull lib.webworker.d.ts into a project that already uses lib.dom.d.ts and make
@@ -103,8 +104,22 @@ async function boot(): Promise<void> {
   // The vfs loader walks the real filesystem looking for wesl.toml, and MEMFS
   // starts empty, so without this the server has no workspace and answers
   // nothing. Built with -sINVOKE_RUN=0 precisely so we can seed before main().
+  //
+  // The user's own tabs are deliberately NOT written here: textDocument/didOpen
+  // is enough to make a file part of the package (measured), and didClose then
+  // removes it again, which gives correct delete/rename semantics for free. Only
+  // the manifests and the read-only bundled packages need to exist on disk,
+  // because nothing ever opens those as documents.
   instance.FS.mkdirTree(WORKSPACE_PATH)
-  instance.FS.writeFile(`${WORKSPACE_PATH}/wesl.toml`, WESL_TOML)
+  instance.FS.writeFile(`${WORKSPACE_PATH}/wesl.toml`, WORKSPACE_WESL_TOML)
+
+  const started = Date.now()
+  for (const { path, source } of vendorFiles()) {
+    instance.FS.mkdirTree(path.slice(0, path.lastIndexOf('/')))
+    instance.FS.writeFile(path, source)
+  }
+  log(`seeded bundled packages in ${Date.now() - started}ms`)
+
   instance.FS.chdir(WORKSPACE_PATH)
 
   // Runs run_server() on a pthread (PROXY_TO_PTHREAD), so it does not block us.

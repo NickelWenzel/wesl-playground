@@ -33,9 +33,15 @@ import { OptionsForm } from './Options'
 import { Tabs } from './Tabs'
 import { dark, ThemeButton } from './Theme'
 import { Editor } from './Editor'
+import {
+  reconcile,
+  setActivateHandler,
+  setEditHandler,
+  setPackageHandler,
+} from './lsp/models'
 import { compile } from './wesl'
 import { Render } from './Canvas'
-import { PackageExplorer } from './PackageExplorer'
+import { PackageExplorer, showPackageModule } from './PackageExplorer'
 
 const DEFAULT_MESSAGE = `Visit <a href="https://wesl-lang.dev">wesl-lang.dev</a> to learn WESL.`
 
@@ -53,9 +59,35 @@ const [diagnostics, setDiagnostics] = createSignal<wesl.Diagnostic[]>([])
 const [output, setOutput] = createSignal('')
 const [message, setMessage] = createSignal(DEFAULT_MESSAGE)
 
-const setSource = (source: string) =>
-  setFiles(tab(), { name: files[tab()].name, source })
-const source = () => files[tab()]?.source ?? ''
+// One monaco model per tab, so the language server sees a real multi-file
+// workspace and imports between tabs resolve. models.ts owns their lifecycle;
+// reconciling on the *name list* rather than on the store keeps typing (which
+// only changes `source`) from churning models.
+setEditHandler((name, content) => {
+  const index = files.findIndex((file) => file.name === name)
+  if (index !== -1 && files[index].source !== content) {
+    setFiles(index, { name, source: content })
+  }
+})
+// Lets go-to-definition bring another tab to the front when the symbol lives there.
+setActivateHandler((name) => {
+  const index = files.findIndex((file) => file.name === name)
+  if (index !== -1) setTab(index)
+})
+// Definitions inside a bundled package have no tab, so show them read-only in
+// the Packages pane (right tab 2) instead.
+setPackageHandler((module, line) => {
+  if (!showPackageModule(module, line)) return false
+  setRightTab(2)
+  return true
+})
+// Safe to run on every store change: reconcile only touches a model when the set
+// of names changed, or when content differs from what the model already holds —
+// and the user's own typing arrives via setEditHandler, so it matches by then.
+createEffect(() => {
+  trackStore(files)
+  reconcile(files)
+})
 
 const trackState = () => {
   trackStore(options)
@@ -243,10 +275,8 @@ const LeftPane = () => (
         oncreate={newFile}
       />
       <Editor
-        content={source()}
-        filepath="input.wgsl"
-        diagnostics={diagnostics().filter((d) => d.file === files[tab()].name)}
-        onchange={setSource}
+        file={files[tab()]?.name}
+        diagnostics={diagnostics().filter((d) => d.file === files[tab()]?.name)}
       />
     </div>
   </div>

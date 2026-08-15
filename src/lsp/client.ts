@@ -6,7 +6,7 @@
 
 import { MonacoLspClient, createTransportToWorker } from '../monaco-lsp-client'
 import WgslAnalyzerWorker from './wgslAnalyzer.worker?worker'
-import { WORKSPACE_URI } from './workspace'
+import { VENDOR_URI, WORKSPACE_URI } from './workspace'
 
 let client: MonacoLspClient | undefined
 
@@ -32,6 +32,12 @@ export function startLspClient(): MonacoLspClient | undefined {
   try {
     client = new MonacoLspClient(createTransportToWorker(worker), {
       rootUri: WORKSPACE_URI,
+      // The bundled packages live outside the user's package, so they need their
+      // own workspace folder — package discovery is gated on membership.
+      workspaceFolders: [
+        { uri: WORKSPACE_URI, name: 'workspace' },
+        { uri: VENDOR_URI, name: 'vendor' },
+      ],
     })
   } catch (error) {
     console.error('[wgsl-analyzer] failed to start LSP client', error)
