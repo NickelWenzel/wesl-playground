@@ -207,7 +207,10 @@ declare class MonacoLspClient {
   private readonly _capabilitiesRegistry;
   private readonly _bridge;
   private _initPromise;
-  constructor(transport: IMessageTransport);
+  constructor(
+    transport: IMessageTransport,
+    options?: { rootUri?: string | null },
+  );
   private _init;
   protected createFeatures(): IDisposable;
 }

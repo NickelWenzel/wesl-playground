@@ -4018,7 +4018,6 @@ var LspDiagnosticsFeature = class extends Disposable {
         },
       }),
     )
-    debugger
     this._register(
       this._connection.connection.registerNotificationHandler(
         api.client.textDocumentPublishDiagnostics,
@@ -4502,6 +4501,11 @@ var TextDocumentSynchronizer = class extends Disposable {
   }
   _getOrCreateManagedModel(m) {
     if (!this._started) throw new Error('Not started')
+    // PLAYGROUND PATCH: upstream syncs every model on the page. We only want the
+    // editable source document — not the compiler-output pane or the read-only
+    // package previews, which would otherwise be opened as workspace files and
+    // produce duplicate-symbol noise. Those use the 'wgsl-readonly' language id.
+    if (m.getLanguageId() !== 'wgsl') return undefined
     const uriStr = m.uri.toString(true).toLowerCase()
     let mm = this._managedModels.get(m)
     if (!mm) {
@@ -4623,10 +4627,12 @@ var MonacoLspClient = class {
   _capabilitiesRegistry
   _bridge
   _initPromise
-  constructor(transport) {
+  _options
+  // PLAYGROUND PATCH: accept options so rootUri can be supplied (see _init).
+  constructor(transport, options = {}) {
+    this._options = options
     const c = TypedChannel.fromTransport(transport)
     const s = api.getServer(c, {})
-    console.log('api', api, 'server', s)
     c.startListen()
     this._capabilitiesRegistry = new LspCapabilitiesRegistry(c)
     this._bridge = new TextDocumentSynchronizer(
@@ -4643,10 +4649,16 @@ var MonacoLspClient = class {
     this._initPromise = this._init()
   }
   async _init() {
+    // PLAYGROUND PATCH: wgsl-analyzer discovers its workspace (wesl.toml) from
+    // rootUri; with null it finds nothing and answers no requests.
+    const rootUri = this._options.rootUri ?? null
     const result = await this._connection.server.initialize({
       processId: null,
       capabilities: this._capabilitiesRegistry.getClientCapabilities(),
-      rootUri: null,
+      rootUri,
+      workspaceFolders: rootUri
+        ? [{ uri: rootUri, name: 'workspace' }]
+        : null,
     })
     this._connection.server.initialized({})
     this._capabilitiesRegistry.setServerCapabilities(result.capabilities)

@@ -3,6 +3,8 @@ import monaco, { editorWorker } from './monaco'
 import { createEffect, onCleanup } from 'solid-js'
 import { Diagnostic } from './wesl-web/wesl_web'
 import { dark } from './Theme'
+import { startLspClient } from './lsp/client'
+import { WORKSPACE_PATH } from './lsp/workspace'
 
 // update dark/light monaco theme
 createEffect(() => {
@@ -34,37 +36,29 @@ export const Editor = (props: EditorProps) => {
       },
     }
 
-    const uri = monaco.Uri.parse('file:///' + props.filepath)
+    // Must match the emscripten MEMFS layout the LSP worker seeds; see lsp/workspace.ts.
+    const uri = monaco.Uri.parse(`file://${WORKSPACE_PATH}/` + props.filepath)
+    // The LSP client syncs *every* monaco model to the server. Readonly editors
+    // (compiler output, package previews) get their own language id so they are
+    // outside the server's documentSelector and never opened as workspace files.
+    const languageId = props.readonly ? 'wgsl-readonly' : 'wgsl'
     model =
       monaco.editor.getModel(uri) ??
-      monaco.editor.createModel(props.content, 'wgsl', uri)
+      monaco.editor.createModel(props.content, languageId, uri)
 
     const editor = monaco.editor.create(elt, {
       // value: props.content,
       model,
       theme: 'theme',
-      language: 'wgsl',
+      language: languageId,
       mouseWheelZoom: true,
       automaticLayout: true,
       readOnly: props.readonly ?? false,
       renderValidationDecorations: 'on',
     })
 
-    // setup the LSP (wgsl-analyzer)
-    // const transport = createTransportToWorker(new wgslAnalyzerWorker())
-    // TODO: make this configurable.
-    monaco.lsp.WebSocketTransport.connectTo({
-      host: 'wgsl-analyzer.thissma.fr',
-      port: 443,
-      forceTls: true,
-    })
-      .then((transport) => {
-        const client = new monaco.lsp.MonacoLspClient(transport)
-        console.log('initialized lsp', client)
-      })
-      .catch((e) => {
-        console.error('failed to connect to wgsl_analyzer remote lsp', e)
-      })
+    // Boots wgsl-analyzer (wasm) in a worker on first use; a no-op afterwards.
+    if (!props.readonly) startLspClient()
 
     // keeping track of the editor content avoids calling editor.setValue() when source()
     // changed as a result of editing.

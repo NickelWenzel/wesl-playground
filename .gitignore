@@ -1,3 +1,6 @@
 node_modules
 dist
 .*/
+
+# wasm-lsp: built artifacts, copied by script/buildWgslAnalyzerWasm.sh
+public/wgsl-analyzer/

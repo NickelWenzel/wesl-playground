@@ -80,8 +80,20 @@ import * as monaco from 'monaco-editor'
 
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
 
-// const monacoWithLsp = Object.assign({ lsp }, monaco)
+// Read-only panes (compiler output, package previews) use this language id so the
+// LSP client does not sync them to wgsl-analyzer as workspace files. It reuses the
+// built-in wgsl tokenizer purely for highlighting. See src/lsp/workspace.ts.
+monaco.languages.register({ id: 'wgsl-readonly' })
+monaco.languages.onLanguage('wgsl-readonly', () => {
+  const wgsl = monaco.languages
+    .getLanguages()
+    .find((language) => language.id === 'wgsl') as
+    | { loader?: () => Promise<{ language: monaco.languages.IMonarchLanguage }> }
+    | undefined
+  void wgsl?.loader?.().then(({ language }) => {
+    monaco.languages.setMonarchTokensProvider('wgsl-readonly', language)
+  })
+})
 
-// export default monacoWithLsp
 export default monaco
 export { editorWorker }
