@@ -91,8 +91,9 @@ as the clangd example uses for GitHub Pages) before this ships.
 
 - The emscripten glue must **not** go through Vite's transforms, so the worker loads it with
   a runtime `import(/* @vite-ignore */ …)`.
-- The artifact is ~67 MB in debug (~10-20 MB expected with `--release`) — too large for git,
-  despite the precedent set by the committed 5.8 MB `src/wesl-web/wesl_web_bg.wasm`.
+- The artifact is ~67 MB in debug — too large for git. **A size-tuned release build is 4.85 MB
+  and *is* committed**, at `src/wgsl-analyzer-web/`; `public/` is now the optional override
+  that wins when present. See [`wasm-lsp-release.md`](./wasm-lsp-release.md).
 - **The filename must stay `wgsl_analyzer.js`.** The glue spawns its pthread workers with
   `new Worker(new URL("wgsl_analyzer.js", import.meta.url))` — emcc's output name. Cargo
   renames the file to the bin name (`wgsl-analyzer.js`), so the script renames it back;

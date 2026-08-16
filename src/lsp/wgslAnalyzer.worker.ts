@@ -26,11 +26,23 @@ type WorkerScope = {
 }
 const ctx = self as unknown as WorkerScope
 
-// Served from public/, so Vite never tries to transform the emscripten glue.
-// The filename must stay `wgsl_analyzer.js`: the glue spawns its pthread workers
-// with `new Worker(new URL("wgsl_analyzer.js", import.meta.url))`.
-const GLUE_URL = '/wgsl-analyzer/wgsl_analyzer.js'
-const WASM_URL = '/wgsl-analyzer/wgsl_analyzer.wasm'
+// Two possible homes for the analyzer, neither of them ever imported: Vite must
+// not transform the emscripten glue (see the plugin in vite.config.ts). The
+// filename must stay `wgsl_analyzer.js` and sit beside the .wasm, because the
+// glue spawns its pthread workers with
+// `new Worker(new URL("wgsl_analyzer.js", import.meta.url))`.
+const RELEASE_BASE = '/wgsl-analyzer-web' // committed release build; the default
+const DEBUG_BASE = '/wgsl-analyzer' // script/buildWgslAnalyzerWasm.sh output
+
+// The debug build is strictly opt-in:
+//
+//   VITE_WGSL_ANALYZER=debug npm run dev
+//
+// Resolved at compile time, not by probing for the directory. That keeps the
+// choice explicit — a leftover prototype build in public/ can never silently
+// take over — and lets the unused branch be dead-code eliminated.
+const USE_DEBUG_BUILD = import.meta.env.VITE_WGSL_ANALYZER === 'debug'
+const ANALYZER_BASE = USE_DEBUG_BUILD ? DEBUG_BASE : RELEASE_BASE
 
 type EmscriptenModule = {
   FS: {
@@ -77,9 +89,20 @@ ctx.addEventListener('message', (event: MessageEvent) => {
 })
 
 async function boot(): Promise<void> {
+  const base = ANALYZER_BASE
+  log(
+    USE_DEBUG_BUILD
+      ? `using the debug build from ${base} (VITE_WGSL_ANALYZER=debug)`
+      : 'using the bundled release build',
+  )
+
   // Template literal + @vite-ignore so Vite leaves the glue alone and it is
-  // fetched at runtime from public/.
-  const glue = await import(/* @vite-ignore */ `${GLUE_URL}`)
+  // fetched at runtime. @vite-ignore alone only silences the warning:
+  // vite:import-analysis still rewrites the specifier unless it is a plain
+  // string-ish expression that looks like a JS request, so this must stay a
+  // template literal ending in the literal `.js`. A bare identifier gets
+  // `?import` appended, which routes it into transformMiddleware and throws.
+  const glue = await import(/* @vite-ignore */ `${base}/wgsl_analyzer.js`)
   const createWgslAnalyzer = glue.default as (
     options: Record<string, unknown>,
   ) => Promise<EmscriptenModule>
@@ -94,7 +117,9 @@ async function boot(): Promise<void> {
   const instance = await createWgslAnalyzer({
     thisProgram: '/usr/bin/wgsl-analyzer',
     locateFile: (path: string, prefix: string) =>
-      path.endsWith('.wasm') ? WASM_URL : `${prefix}${path}`,
+      path.endsWith('.wasm')
+        ? `${base}/wgsl_analyzer.wasm`
+        : `${prefix}${path}`,
     print: (text: string) => log(`stdout: ${text}`),
     printErr: (text: string) => log(`stderr: ${text}`),
     onAbort: (what: unknown) => log(`ABORT: ${String(what)}`),
@@ -135,4 +160,13 @@ async function boot(): Promise<void> {
 boot().catch((error: unknown) => {
   log(`failed to boot: ${String(error)}`)
   console.error('[wgsl-analyzer] boot failed', error)
+  // Much the likeliest cause of a failure in this mode, and it is not obvious
+  // from the module-resolution error alone.
+  if (USE_DEBUG_BUILD) {
+    console.error(
+      `[wgsl-analyzer] VITE_WGSL_ANALYZER=debug is set, so the analyzer was loaded from ` +
+        `${DEBUG_BASE}. Run script/buildWgslAnalyzerWasm.sh to produce it, or unset the ` +
+        `variable to use the committed release build.`,
+    )
+  }
 })

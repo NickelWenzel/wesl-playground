@@ -13,6 +13,17 @@
       "@webgpu/types"
     ],
     "noEmit": true,
-    "isolatedModules": true
-  }
+    "isolatedModules": true,
+    // The published `wesl` package ships .d.ts files that import
+    // '../../mini-parse/src', which is not in the tarball. Nothing here can fix
+    // that, and it otherwise fails the typecheck on every run.
+    "skipLibCheck": true
+  },
+  // Browser code only. vite.config.ts runs in node and needs a different lib and
+  // `types` (pulling node's types in here would, among other things, type
+  // setTimeout as returning a Timeout rather than a number) -- tsconfig.node.json
+  // covers it. `npm run typecheck` checks both.
+  "include": [
+    "src"
+  ]
 }
