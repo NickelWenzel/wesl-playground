@@ -159,11 +159,40 @@ bytes at a fixed prefix:
   middleware, while a *returned* hook runs after transform and static. Being first also puts it
   ahead of Vite's host and CORS checks, so the route serves only the two known filenames and
   nothing else in the directory. It sends an `ETag` and honours `If-None-Match`, or every reload
-  re-transfers 8.8 MB.
+  re-transfers 4.85 MB.
+
+  **It must re-apply `server.headers` itself** — see below.
 - **build** — `fs.copyFileSync` in `writeBundle`. `emitFile` with an explicit `fileName` would
   also bypass hashing, but it parks the whole artifact in the bundle object until write.
   `writeBundle` is never invoked for the `?worker` sub-bundle (that path calls
   `bundle.generate()`, not `write()`), so no double-emit guard is needed.
+
+### Being first in the middleware chain also skips `server.headers`
+
+The ordering that makes the route work is also a trap, and it cost a regression. `server.headers`
+— which is where COOP/COEP live — is applied by a Vite middleware, so a handler registered
+*ahead* of Vite's stack never gets them. The artifacts were served without
+`Cross-Origin-Embedder-Policy`, while everything else on the origin had it.
+
+That is fatal rather than cosmetic. The glue spawns its pthread workers from its own URL, and
+under COEP a dedicated worker script must itself carry `require-corp`. All eight were blocked:
+
+```
+net::ERR_BLOCKED_BY_RESPONSE   coep-frame-resource-needs-coep-header
+```
+
+The failure mode is quiet. `crossOriginIsolated` is `true`, the page loads, the module import
+succeeds, the worker logs which build it chose — and then `createWgslAnalyzer()` simply never
+resolves, so `boot()` hangs with **no exception**. The language server is silently absent, and
+the `.catch` never runs. Symptom: every LSP feature gone, nothing in the console to say why.
+
+The middleware now copies `config.server.headers` onto every response it serves. Mirroring the
+config rather than hardcoding the two headers keeps one source of truth.
+
+Worth noting what did *not* catch this: HTTP checks with `curl` (status and content-type were
+correct), the headless node harness (no browser, no COEP), `tsc`, and `vite build`. Only loading
+the page in a real browser surfaces it — the check is that the worker reaches
+`booted; flushing …`, not merely that it logs which build it picked.
 
 **The dynamic import's shape is load-bearing too.** `@vite-ignore` on its own only suppresses the
 warning; `vite:import-analysis` still rewrites the specifier unless it looks like a plain string
@@ -196,8 +225,15 @@ emitted unhashed at the exact path; `README.md` not shipped; path traversal thro
 contained; `ETag` → `304`; `vite preview` serves both files with the right content types under
 COOP/COEP; `npm run typecheck` and `npm run build` clean.
 
-**Not covered:** no browser ran. The pthread workers actually spawning from `/wgsl-analyzer-web/`,
-and the editor integration, are unverified by this pass.
+Since a COEP regression is invisible to all of the above, the browser path is now checked
+directly: headless Chrome over CDP, attaching to the worker targets, asserting the analyzer
+reaches `booted; flushing …` with no `ERR_BLOCKED_BY_RESPONSE`. Both `npm run dev` and
+`VITE_WGSL_ANALYZER=debug npm run dev` pass.
+
+**Not covered:** the editor integration itself — clicking through go-to-definition, the packages
+pane, and tab switching. Known pre-existing noise, unrelated to this pass: the read-only
+compiler-output pane (`pkg:///output.wgsl`, from `cf9940c`) draws
+`Error: file not found: /output.wgsl` from the inlay-hint and folding-range providers.
 
 ## 5. Known limits
 

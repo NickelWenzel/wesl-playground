@@ -32,6 +32,7 @@ const CONTENT_TYPE: Record<string, string> = {
 function wgslAnalyzerWeb(): Plugin {
   let outDir = 'dist'
   let useDebugBuild = false
+  let serverHeaders: [string, string][] = []
   return {
     name: 'wgsl-analyzer-web',
     configResolved(config) {
@@ -39,6 +40,20 @@ function wgslAnalyzerWeb(): Plugin {
       // Matches the check in src/lsp/wgslAnalyzer.worker.ts. Read from the
       // loaded env rather than process.env so a .env file works too.
       useDebugBuild = config.env.VITE_WGSL_ANALYZER === 'debug'
+      // Being ahead of vite's middleware is what lets this serve the glue
+      // untransformed, but it also means `server.headers` never reaches these
+      // responses. That is fatal rather than cosmetic: the glue spawns its
+      // pthread workers from this same URL, and under COEP a dedicated worker
+      // script must itself carry `require-corp` or the browser blocks it
+      // (ERR_BLOCKED_BY_RESPONSE / coep-frame-resource-needs-coep-header), so
+      // the module hangs mid-init and the language server never starts. Mirror
+      // whatever is configured rather than hardcoding the two headers.
+      serverHeaders = Object.entries(config.server.headers ?? {}).flatMap(
+        ([key, value]): [string, string][] =>
+          value === undefined
+            ? []
+            : [[key, Array.isArray(value) ? value.join(', ') : String(value)]],
+      )
     },
     configureServer(server) {
       // Registered synchronously in the hook body rather than from a returned
@@ -65,7 +80,9 @@ function wgslAnalyzerWeb(): Plugin {
         }
         if (!stat.isFile()) return next()
 
-        // Without a validator every reload re-transfers ~20 MB.
+        for (const [key, value] of serverHeaders) res.setHeader(key, value)
+
+        // Without a validator every reload re-transfers ~5 MB.
         const etag = `W/"${stat.size.toString(16)}-${stat.mtimeMs.toString(16)}"`
         res.setHeader('ETag', etag)
         res.setHeader('Cache-Control', 'no-cache')
