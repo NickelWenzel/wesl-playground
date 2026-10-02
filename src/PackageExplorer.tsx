@@ -2,6 +2,7 @@ import { createSignal, For, Show } from 'solid-js'
 import bevy_wgsl from './packages/bevy_wgsl.json'
 import lygia_wgsl from './packages/lygia_wgsl.json'
 import { Editor } from './Editor'
+import { packagePath } from './lsp'
 import { BsX as CloseIcon } from 'solid-icons/bs'
 
 const files: Record<string, string> = Object.assign({}, bevy_wgsl, lygia_wgsl)
@@ -30,7 +31,11 @@ const FilePreview = (props: { file: string }) => (
         <CloseIcon />
       </button>
     </div>
-    <Editor content={files[props.file]} filepath={props.file} readonly />
+    <Editor
+      content={files[props.file]}
+      filepath={packagePath(props.file)}
+      readonly
+    />
   </div>
 )
 

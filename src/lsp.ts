@@ -12,6 +12,12 @@ import lygia_wgsl from './packages/lygia_wgsl.json'
 //   packages/<pkg>/<path>.wesl      `<pkg>::<path>`
 const ROOT = '/workspace'
 
+/** Absolute path of a bundled package module, e.g. `bevy::pbr::lighting`. */
+export function packagePath(module: string) {
+  const [pkg, ...path] = module.split('::')
+  return `${ROOT}/packages/${pkg}/${path.join('/')}.wesl`
+}
+
 const PACKAGE_MANIFEST = 'edition = "2026_pre"\nroot = "."\n'
 
 function workspaceFiles(): Record<string, string> {
@@ -23,9 +29,8 @@ function workspaceFiles(): Record<string, string> {
     ...bevy_wgsl,
     ...lygia_wgsl,
   })) {
-    const [pkg, ...path] = module.split('::')
-    packages.add(pkg)
-    files[`packages/${pkg}/${path.join('/')}.wesl`] = source
+    packages.add(module.split('::')[0])
+    files[packagePath(module).slice(ROOT.length + 1)] = source
   }
   for (const pkg of packages) {
     files[`packages/${pkg}/wesl.toml`] = PACKAGE_MANIFEST

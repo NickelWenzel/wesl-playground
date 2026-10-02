@@ -29,7 +29,7 @@ interface ModelProps {
   model: monaco.editor.ITextModel | undefined
 }
 
-// owns a model built from `content` at `filepath`
+// owns a model built from `content` at the absolute path `filepath`
 interface ContentProps {
   content: string
   filepath: string
@@ -62,7 +62,7 @@ export const Editor = (props: EditorProps) => {
     if ('model' in props) {
       createEffect(() => editor.setModel(props.model ?? null))
     } else {
-      const uri = monaco.Uri.parse('file:///' + props.filepath)
+      const uri = monaco.Uri.file(props.filepath)
       ownModel =
         monaco.editor.getModel(uri) ??
         monaco.editor.createModel(props.content, 'wgsl', uri)

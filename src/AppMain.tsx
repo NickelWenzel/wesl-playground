@@ -270,7 +270,7 @@ const RightPane = () => (
         <Match when={rightTab() === 0}>
           <Editor
             content={output()}
-            filepath="output.wgsl"
+            filepath="/output.wgsl"
             diagnostics={diagnostics().filter((d) => d.file === 'output')}
             readonly
           />
