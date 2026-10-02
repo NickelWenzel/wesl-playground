@@ -1,11 +1,16 @@
 import * as monaco from 'monaco-editor'
 import editorWorker from 'monaco-editor/editor/editor.worker?worker'
-import { WgslAnalyzerServer } from 'wgsl-analyzer-web'
-import { WgslAnalyzerTransport } from './lsp_transport'
+import { startLsp } from './lsp'
 
 import { createEffect, onCleanup } from 'solid-js'
 import { Diagnostic } from './wesl-web/wesl_web'
 import { dark } from './Theme'
+
+self.MonacoEnvironment = {
+  getWorker: function (_workerId, _label) {
+    return new editorWorker()
+  },
+}
 
 // update dark/light monaco theme
 createEffect(() => {
@@ -19,54 +24,29 @@ createEffect(() => {
   })
 })
 
-// one language server for every editor: the client syncs all monaco models.
-let lspStarted = false
-
-function startLsp() {
-  if (lspStarted) return
-  lspStarted = true
-  WgslAnalyzerServer.start({
-    files: {},
-    onStderr: (line) => console.log(line),
-    onExit: (code) => console.log(`wgsl_analyzer lsp exited with code ${code}`),
-  })
-    .then((server) => {
-      const client = new monaco.lsp.MonacoLspClient(
-        new WgslAnalyzerTransport(server),
-      )
-      console.log('initialized lsp', client)
-    })
-    .catch((e) => {
-      console.error('failed to start wgsl_analyzer lsp', e)
-    })
+// shows a model owned by the caller
+interface ModelProps {
+  model: monaco.editor.ITextModel | undefined
 }
 
-interface EditorProps {
+// owns a model built from `content` at `filepath`
+interface ContentProps {
   content: string
   filepath: string
+}
+
+type EditorProps = (ModelProps | ContentProps) & {
   diagnostics?: Diagnostic[]
   readonly?: true
   onchange?: (content: string) => void
 }
 
 export const Editor = (props: EditorProps) => {
-  let model: monaco.editor.ITextModel
+  let ownModel: monaco.editor.ITextModel | undefined
 
   function setupMonaco(elt: HTMLElement) {
-    self.MonacoEnvironment = {
-      getWorker: function (_workerId, _label) {
-        return new editorWorker()
-      },
-    }
-
-    const uri = monaco.Uri.parse('file:///' + props.filepath)
-    model =
-      monaco.editor.getModel(uri) ??
-      monaco.editor.createModel(props.content, 'wgsl', uri)
-
     const editor = monaco.editor.create(elt, {
-      // value: props.content,
-      model,
+      model: null,
       theme: 'theme',
       language: 'wgsl',
       mouseWheelZoom: true,
@@ -77,27 +57,38 @@ export const Editor = (props: EditorProps) => {
 
     startLsp()
 
-    // keeping track of the editor content avoids calling editor.setValue() when source()
-    // changed as a result of editing.
-    let currentContent = props.content
+    const model = () => ('model' in props ? props.model : ownModel)
 
-    editor.getModel()!.onDidChangeContent(() => {
-      currentContent = editor.getValue()
-      props.onchange?.(currentContent)
+    if ('model' in props) {
+      createEffect(() => editor.setModel(props.model ?? null))
+    } else {
+      const uri = monaco.Uri.parse('file:///' + props.filepath)
+      ownModel =
+        monaco.editor.getModel(uri) ??
+        monaco.editor.createModel(props.content, 'wgsl', uri)
+      editor.setModel(ownModel)
+
+      // comparing with the model avoids calling editor.setValue() when content
+      // changed as a result of editing.
+      createEffect(() => {
+        if (props.content !== ownModel!.getValue()) {
+          editor.setValue(props.content)
+          editor.setScrollTop(0)
+        }
+      })
+    }
+
+    // flushes come from setValue(), i.e. from content the caller already has.
+    editor.onDidChangeModelContent((e) => {
+      if (!e.isFlush) props.onchange?.(editor.getValue())
     })
 
     createEffect(() => {
-      if (props.content !== currentContent) {
-        editor.setValue(props.content)
-        editor.setScrollTop(0)
-      }
-    })
-
-    createEffect(() => {
-      const model = editor.getModel()!
+      const current = model()
+      if (!current) return
       const markers = (props.diagnostics ?? []).map((d) => {
-        const p1 = model.getPositionAt(d.span.start)
-        const p2 = model.getPositionAt(d.span.end)
+        const p1 = current.getPositionAt(d.span.start)
+        const p2 = current.getPositionAt(d.span.end)
         return {
           startLineNumber: p1.lineNumber,
           startColumn: p1.column,
@@ -107,12 +98,12 @@ export const Editor = (props: EditorProps) => {
           severity: monaco.MarkerSeverity.Error,
         }
       })
-      monaco.editor.setModelMarkers(model, 'wesl', markers)
+      monaco.editor.setModelMarkers(current, 'wesl', markers)
     })
   }
 
   onCleanup(() => {
-    if (model) model.dispose()
+    if (ownModel) ownModel.dispose()
   })
 
   return <div class="editor" ref={setupMonaco}></div>
