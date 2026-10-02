@@ -34,10 +34,10 @@ import { OptionsForm } from './Options'
 import { Tabs } from './Tabs'
 import { dark, ThemeButton } from './Theme'
 import { Editor } from './Editor'
-import { syncTabModels, tabModel } from './lsp'
+import { registerOpener, syncTabModels, tabModel } from './lsp'
 import { compile } from './wesl'
 import { Render } from './Canvas'
-import { PackageExplorer } from './PackageExplorer'
+import { PackageExplorer, openPackageFile } from './PackageExplorer'
 
 const DEFAULT_MESSAGE = `Visit <a href="https://wesl-lang.dev">wesl-lang.dev</a> to learn WESL.`
 
@@ -57,6 +57,17 @@ const [message, setMessage] = createSignal(DEFAULT_MESSAGE)
 
 // computed rather than effect: the tab models must exist before the editor renders.
 createComputed(() => syncTabModels(files))
+
+registerOpener({
+  openTab: (name) => {
+    const i = files.findIndex((f) => f.name === name)
+    if (i !== -1) setTab(i)
+  },
+  openPackage: (module) => {
+    openPackageFile(module)
+    setRightTab(2)
+  },
+})
 
 const setSource = (source: string) =>
   setFiles(tab(), { name: files[tab()].name, source })

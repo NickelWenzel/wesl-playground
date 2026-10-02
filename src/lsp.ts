@@ -11,24 +11,27 @@ import lygia_wgsl from './packages/lygia_wgsl.json'
 //   packages/<pkg>/wesl.toml
 //   packages/<pkg>/<path>.wesl      `<pkg>::<path>`
 const ROOT = '/workspace'
+const TABS = `${ROOT}/shaders/`
+const PACKAGES = `${ROOT}/packages/`
 
 /** Absolute path of a bundled package module, e.g. `bevy::pbr::lighting`. */
 export function packagePath(module: string) {
-  const [pkg, ...path] = module.split('::')
-  return `${ROOT}/packages/${pkg}/${path.join('/')}.wesl`
+  return `${PACKAGES}${module.replaceAll('::', '/')}.wesl`
 }
 
 const PACKAGE_MANIFEST = 'edition = "2026_pre"\nroot = "."\n'
+
+const packageSources: Record<string, string> = { ...bevy_wgsl, ...lygia_wgsl }
+
+const moduleOfPackagePath = (path: string) =>
+  path.slice(PACKAGES.length, -'.wesl'.length).replaceAll('/', '::')
 
 function workspaceFiles(): Record<string, string> {
   // the tabs are open documents, never files, but the server fails to load the
   // package if its root directory does not exist.
   const files: Record<string, string> = { 'shaders/.keep': '' }
   const packages = new Set<string>()
-  for (const [module, source] of Object.entries({
-    ...bevy_wgsl,
-    ...lygia_wgsl,
-  })) {
+  for (const [module, source] of Object.entries(packageSources)) {
     packages.add(module.split('::')[0])
     files[packagePath(module).slice(ROOT.length + 1)] = source
   }
@@ -58,6 +61,8 @@ export function startLsp() {
     onExit: (code) => console.log(`wgsl_analyzer lsp exited with code ${code}`),
   })
     .then((server) => {
+      // subscribed before the client, so that it runs first.
+      server.onMessage(createPackageModels)
       const client = new monaco.lsp.MonacoLspClient(
         new WgslAnalyzerTransport(server),
       )
@@ -68,8 +73,28 @@ export function startLsp() {
     })
 }
 
+/**
+ * The client only accepts locations in files that have a model, and throws
+ * otherwise. Package files get one when they are previewed, so this creates
+ * the ones a message points to before the client sees it.
+ */
+function createPackageModels(message: unknown) {
+  if (typeof message !== 'object' || message === null) return
+  for (const [key, value] of Object.entries(message)) {
+    if ((key === 'uri' || key === 'targetUri') && typeof value === 'string') {
+      const uri = monaco.Uri.parse(value)
+      if (uri.path.startsWith(PACKAGES) && !monaco.editor.getModel(uri)) {
+        const source = packageSources[moduleOfPackagePath(uri.path)]
+        if (source !== undefined) monaco.editor.createModel(source, 'wgsl', uri)
+      }
+    } else {
+      createPackageModels(value)
+    }
+  }
+}
+
 // files must be `.wesl`: in a `.wgsl` file, `import` is a syntax error.
-const tabUri = (name: string) => monaco.Uri.file(`${ROOT}/shaders/${name}.wesl`)
+const tabUri = (name: string) => monaco.Uri.file(`${TABS}${name}.wesl`)
 
 const tabModels = new Map<string, monaco.editor.ITextModel>()
 
@@ -103,4 +128,42 @@ export function syncTabModels(
       model.setValue(source)
     }
   }
+}
+
+/**
+ * Handles go-to-definition into another file, which a standalone monaco editor
+ * cannot open by itself: `openTab` or `openPackage` must show the target in an
+ * editor, which then reveals the target range.
+ */
+export function registerOpener(handlers: {
+  openTab: (name: string) => void
+  openPackage: (module: string) => void
+}) {
+  monaco.editor.registerEditorOpener({
+    openCodeEditor(_source, resource, selectionOrPosition) {
+      const path = resource.path
+      if (!path.endsWith('.wesl')) return false
+      if (path.startsWith(TABS)) {
+        handlers.openTab(path.slice(TABS.length, -'.wesl'.length))
+      } else if (path.startsWith(PACKAGES)) {
+        handlers.openPackage(moduleOfPackagePath(path))
+      } else {
+        return false
+      }
+
+      const editor = monaco.editor
+        .getEditors()
+        .find((e) => e.getModel()?.uri.toString() === resource.toString())
+      if (!editor) return false
+      if (selectionOrPosition && monaco.Range.isIRange(selectionOrPosition)) {
+        editor.setSelection(selectionOrPosition)
+        editor.revealRangeInCenter(selectionOrPosition)
+      } else if (selectionOrPosition) {
+        editor.setPosition(selectionOrPosition)
+        editor.revealPositionInCenter(selectionOrPosition)
+      }
+      editor.focus()
+      return true
+    },
+  })
 }

@@ -55,6 +55,8 @@ export const Editor = (props: EditorProps) => {
       renderValidationDecorations: 'on',
     })
 
+    onCleanup(() => editor.dispose())
+
     startLsp()
 
     const model = () => ('model' in props ? props.model : ownModel)

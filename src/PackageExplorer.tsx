@@ -9,6 +9,8 @@ const files: Record<string, string> = Object.assign({}, bevy_wgsl, lygia_wgsl)
 const filenames = Object.keys(files).sort()
 const [selected, setSelected] = createSignal<string | null>(null)
 
+export const openPackageFile = (module: string) => setSelected(module)
+
 const FileList = () => (
   <div class="list">
     <ul>
@@ -41,8 +43,8 @@ const FilePreview = (props: { file: string }) => (
 
 export const PackageExplorer = () => (
   <div class="packages">
-    <Show when={selected()} fallback=<FileList />>
-      {(f) => <FilePreview file={f()} />}
+    <Show when={selected()} keyed fallback=<FileList />>
+      {(f) => <FilePreview file={f} />}
     </Show>
   </div>
 )
