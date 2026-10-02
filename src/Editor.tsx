@@ -1,4 +1,7 @@
-import monaco, { editorWorker } from './monaco'
+import * as monaco from 'monaco-editor'
+import editorWorker from 'monaco-editor/editor/editor.worker?worker'
+import { WgslAnalyzerServer } from 'wgsl-analyzer-web'
+import { WgslAnalyzerTransport } from './lsp_transport'
 
 import { createEffect, onCleanup } from 'solid-js'
 import { Diagnostic } from './wesl-web/wesl_web'
@@ -15,6 +18,28 @@ createEffect(() => {
     },
   })
 })
+
+// one language server for every editor: the client syncs all monaco models.
+let lspStarted = false
+
+function startLsp() {
+  if (lspStarted) return
+  lspStarted = true
+  WgslAnalyzerServer.start({
+    files: {},
+    onStderr: (line) => console.log(line),
+    onExit: (code) => console.log(`wgsl_analyzer lsp exited with code ${code}`),
+  })
+    .then((server) => {
+      const client = new monaco.lsp.MonacoLspClient(
+        new WgslAnalyzerTransport(server),
+      )
+      console.log('initialized lsp', client)
+    })
+    .catch((e) => {
+      console.error('failed to start wgsl_analyzer lsp', e)
+    })
+}
 
 interface EditorProps {
   content: string
@@ -50,21 +75,7 @@ export const Editor = (props: EditorProps) => {
       renderValidationDecorations: 'on',
     })
 
-    // setup the LSP (wgsl-analyzer)
-    // const transport = createTransportToWorker(new wgslAnalyzerWorker())
-    // TODO: make this configurable.
-    monaco.lsp.WebSocketTransport.connectTo({
-      host: 'wgsl-analyzer.thissma.fr',
-      port: 443,
-      forceTls: true,
-    })
-      .then((transport) => {
-        const client = new monaco.lsp.MonacoLspClient(transport)
-        console.log('initialized lsp', client)
-      })
-      .catch((e) => {
-        console.error('failed to connect to wgsl_analyzer remote lsp', e)
-      })
+    startLsp()
 
     // keeping track of the editor content avoids calling editor.setValue() when source()
     // changed as a result of editing.
