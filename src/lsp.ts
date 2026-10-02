@@ -2,10 +2,43 @@ import * as monaco from 'monaco-editor'
 import { WgslAnalyzerServer } from 'wgsl-analyzer-web'
 import { WgslAnalyzerTransport } from './lsp_transport'
 
+import bevy_wgsl from './packages/bevy_wgsl.json'
+import lygia_wgsl from './packages/lygia_wgsl.json'
+
+// workspace layout:
+//   wesl.toml
+//   shaders/<tab>.wesl              the tabs, i.e. `package::<tab>`
+//   packages/<pkg>/wesl.toml
+//   packages/<pkg>/<path>.wesl      `<pkg>::<path>`
 const ROOT = '/workspace'
 
-// tabs live directly in the workspace, not in the default root `./shaders`.
-const MANIFEST = 'edition = "2026_pre"\nroot = "."\n'
+const PACKAGE_MANIFEST = 'edition = "2026_pre"\nroot = "."\n'
+
+function workspaceFiles(): Record<string, string> {
+  // the tabs are open documents, never files, but the server fails to load the
+  // package if its root directory does not exist.
+  const files: Record<string, string> = { 'shaders/.keep': '' }
+  const packages = new Set<string>()
+  for (const [module, source] of Object.entries({
+    ...bevy_wgsl,
+    ...lygia_wgsl,
+  })) {
+    const [pkg, ...path] = module.split('::')
+    packages.add(pkg)
+    files[`packages/${pkg}/${path.join('/')}.wesl`] = source
+  }
+  for (const pkg of packages) {
+    files[`packages/${pkg}/wesl.toml`] = PACKAGE_MANIFEST
+  }
+  files['wesl.toml'] = [
+    'edition = "2026_pre"',
+    '',
+    '[dependencies]',
+    ...[...packages].map((pkg) => `${pkg} = { path = "packages/${pkg}" }`),
+    '',
+  ].join('\n')
+  return files
+}
 
 let lspStarted = false
 
@@ -15,7 +48,7 @@ export function startLsp() {
   lspStarted = true
   WgslAnalyzerServer.start({
     root: ROOT,
-    files: { 'wesl.toml': MANIFEST },
+    files: workspaceFiles(),
     onStderr: (line) => console.log(line),
     onExit: (code) => console.log(`wgsl_analyzer lsp exited with code ${code}`),
   })
@@ -31,7 +64,7 @@ export function startLsp() {
 }
 
 // files must be `.wesl`: in a `.wgsl` file, `import` is a syntax error.
-const tabUri = (name: string) => monaco.Uri.file(`${ROOT}/${name}.wesl`)
+const tabUri = (name: string) => monaco.Uri.file(`${ROOT}/shaders/${name}.wesl`)
 
 const tabModels = new Map<string, monaco.editor.ITextModel>()
 
