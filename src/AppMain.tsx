@@ -34,7 +34,8 @@ import { OptionsForm } from './Options'
 import { Tabs } from './Tabs'
 import { dark, ThemeButton } from './Theme'
 import { Editor } from './Editor'
-import { registerOpener, syncTabModels, tabModel } from './lsp'
+import monaco from './monaco'
+import { setOpener, syncTabModels, tabModel } from './lsp'
 import { compile } from './wesl'
 import { Render } from './Canvas'
 import { PackageExplorer, openPackageFile } from './PackageExplorer'
@@ -58,7 +59,7 @@ const [message, setMessage] = createSignal(DEFAULT_MESSAGE)
 // computed rather than effect: the tab models must exist before the editor renders.
 createComputed(() => syncTabModels(files))
 
-registerOpener({
+setOpener({
   openTab: (name) => {
     const i = files.findIndex((f) => f.name === name)
     if (i !== -1) setTab(i)

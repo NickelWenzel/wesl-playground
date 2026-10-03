@@ -75,18 +75,15 @@ export function startLsp() {
 
 /**
  * The client only accepts locations in files that have a model, and throws
- * otherwise. Package files get one when they are previewed, so this creates
- * the ones a message points to before the client sees it.
+ * otherwise. This creates the package models a message points to before the
+ * client sees it.
  */
 function createPackageModels(message: unknown) {
   if (typeof message !== 'object' || message === null) return
   for (const [key, value] of Object.entries(message)) {
     if ((key === 'uri' || key === 'targetUri') && typeof value === 'string') {
-      const uri = monaco.Uri.parse(value)
-      if (uri.path.startsWith(PACKAGES) && !monaco.editor.getModel(uri)) {
-        const source = packageSources[moduleOfPackagePath(uri.path)]
-        if (source !== undefined) monaco.editor.createModel(source, 'wgsl', uri)
-      }
+      const path = monaco.Uri.parse(value).path
+      if (path.startsWith(PACKAGES)) packageModel(moduleOfPackagePath(path))
     } else {
       createPackageModels(value)
     }
@@ -145,39 +142,23 @@ export function syncTabModels(
 }
 
 /**
- * Handles go-to-definition into another file, which a standalone monaco editor
- * cannot open by itself: `openTab` or `openPackage` must show the target in an
- * editor, which then reveals the target range.
+ * Shows the target of a go-to-definition into another file: `openTab` or
+ * `openPackage` must show it in an editor.
  */
-export function registerOpener(handlers: {
+export function setOpener(handlers: {
   openTab: (name: string) => void
   openPackage: (module: string) => void
 }) {
-  monaco.editor.registerEditorOpener({
-    openCodeEditor(_source, resource, selectionOrPosition) {
-      const path = resource.path
-      if (!path.endsWith('.wesl')) return false
-      if (path.startsWith(TABS)) {
-        handlers.openTab(path.slice(TABS.length, -'.wesl'.length))
-      } else if (path.startsWith(PACKAGES)) {
-        handlers.openPackage(moduleOfPackagePath(path))
-      } else {
-        return false
-      }
-
-      const editor = monaco.editor
-        .getEditors()
-        .find((e) => e.getModel()?.uri.toString() === resource.toString())
-      if (!editor) return false
-      if (selectionOrPosition && monaco.Range.isIRange(selectionOrPosition)) {
-        editor.setSelection(selectionOrPosition)
-        editor.revealRangeInCenter(selectionOrPosition)
-      } else if (selectionOrPosition) {
-        editor.setPosition(selectionOrPosition)
-        editor.revealPositionInCenter(selectionOrPosition)
-      }
-      editor.focus()
-      return true
-    },
+  setResourceOpener((resource) => {
+    const path = resource.path
+    if (!path.endsWith('.wesl')) return false
+    if (path.startsWith(TABS)) {
+      handlers.openTab(path.slice(TABS.length, -'.wesl'.length))
+    } else if (path.startsWith(PACKAGES)) {
+      handlers.openPackage(moduleOfPackagePath(path))
+    } else {
+      return false
+    }
+    return true
   })
 }
