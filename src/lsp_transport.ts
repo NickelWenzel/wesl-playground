@@ -8,7 +8,7 @@
  * This goes against `WgslAnalyzerServer` directly instead.
  */
 
-import type * as monaco from 'monaco-editor'
+import type monaco from './monaco'
 import type { Disposable, WgslAnalyzerServer } from 'wgsl-analyzer-web'
 
 // `monaco.lsp` exports only MonacoLspClient, WebSocketTransport and the two

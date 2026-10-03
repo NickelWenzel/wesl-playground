@@ -1,16 +1,9 @@
-import * as monaco from 'monaco-editor'
-import editorWorker from 'monaco-editor/editor/editor.worker?worker'
+import monaco from './monaco'
 import { startLsp } from './lsp'
 
 import { createEffect, onCleanup } from 'solid-js'
 import { Diagnostic } from './wesl-web/wesl_web'
 import { dark } from './Theme'
-
-self.MonacoEnvironment = {
-  getWorker: function (_workerId, _label) {
-    return new editorWorker()
-  },
-}
 
 // update dark/light monaco theme
 createEffect(() => {

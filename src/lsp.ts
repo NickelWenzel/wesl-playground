@@ -1,4 +1,4 @@
-import * as monaco from 'monaco-editor'
+import monaco, { setResourceOpener } from './monaco'
 import { WgslAnalyzerServer } from 'wgsl-analyzer-web'
 import { WgslAnalyzerTransport } from './lsp_transport'
 
