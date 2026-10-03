@@ -1,6 +1,7 @@
 import {
   createSignal,
   createEffect,
+  createComputed,
   createReaction,
   Switch,
   Match,
@@ -33,9 +34,11 @@ import { OptionsForm } from './Options'
 import { Tabs } from './Tabs'
 import { dark, ThemeButton } from './Theme'
 import { Editor } from './Editor'
+import monaco from './monaco'
+import { setOpener, syncTabModels, tabModel } from './lsp'
 import { compile } from './wesl'
 import { Render } from './Canvas'
-import { PackageExplorer } from './PackageExplorer'
+import { PackageExplorer, openPackageFile } from './PackageExplorer'
 
 const DEFAULT_MESSAGE = `Visit <a href="https://wesl-lang.dev">wesl-lang.dev</a> to learn WESL.`
 
@@ -53,9 +56,31 @@ const [diagnostics, setDiagnostics] = createSignal<wesl.Diagnostic[]>([])
 const [output, setOutput] = createSignal('')
 const [message, setMessage] = createSignal(DEFAULT_MESSAGE)
 
+// computed rather than effect: the tab models must exist before the editor renders.
+createComputed(() => syncTabModels(files))
+
+setOpener({
+  openTab: (name) => {
+    const i = files.findIndex((f) => f.name === name)
+    if (i !== -1) setTab(i)
+  },
+  openPackage: (module) => {
+    openPackageFile(module)
+    setRightTab(2)
+  },
+})
+
+const outputModel = monaco.editor.createModel(
+  '',
+  'wgsl',
+  monaco.Uri.file('/output.wgsl'),
+)
+createEffect(() => {
+  if (outputModel.getValue() !== output()) outputModel.setValue(output())
+})
+
 const setSource = (source: string) =>
   setFiles(tab(), { name: files[tab()].name, source })
-const source = () => files[tab()]?.source ?? ''
 
 const trackState = () => {
   trackStore(options)
@@ -243,8 +268,7 @@ const LeftPane = () => (
         oncreate={newFile}
       />
       <Editor
-        content={source()}
-        filepath="input.wgsl"
+        model={files[tab()] && tabModel(files[tab()].name)}
         diagnostics={diagnostics().filter((d) => d.file === files[tab()].name)}
         onchange={setSource}
       />
@@ -266,8 +290,7 @@ const RightPane = () => (
       <Switch>
         <Match when={rightTab() === 0}>
           <Editor
-            content={output()}
-            filepath="output.wgsl"
+            model={outputModel}
             diagnostics={diagnostics().filter((d) => d.file === 'output')}
             readonly
           />

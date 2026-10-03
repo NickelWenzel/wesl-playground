@@ -1,4 +1,5 @@
-import monaco, { editorWorker } from './monaco'
+import monaco from './monaco'
+import { startLsp } from './lsp'
 
 import { createEffect, onCleanup } from 'solid-js'
 import { Diagnostic } from './wesl-web/wesl_web'
@@ -17,31 +18,17 @@ createEffect(() => {
 })
 
 interface EditorProps {
-  content: string
-  filepath: string
+  // owned by the caller
+  model: monaco.editor.ITextModel | undefined
   diagnostics?: Diagnostic[]
   readonly?: true
   onchange?: (content: string) => void
 }
 
 export const Editor = (props: EditorProps) => {
-  let model: monaco.editor.ITextModel
-
   function setupMonaco(elt: HTMLElement) {
-    self.MonacoEnvironment = {
-      getWorker: function (_workerId, _label) {
-        return new editorWorker()
-      },
-    }
-
-    const uri = monaco.Uri.parse('file:///' + props.filepath)
-    model =
-      monaco.editor.getModel(uri) ??
-      monaco.editor.createModel(props.content, 'wgsl', uri)
-
     const editor = monaco.editor.create(elt, {
-      // value: props.content,
-      model,
+      model: null,
       theme: 'theme',
       language: 'wgsl',
       mouseWheelZoom: true,
@@ -50,40 +37,20 @@ export const Editor = (props: EditorProps) => {
       renderValidationDecorations: 'on',
     })
 
-    // setup the LSP (wgsl-analyzer)
-    // const transport = createTransportToWorker(new wgslAnalyzerWorker())
-    // TODO: make this configurable.
-    monaco.lsp.WebSocketTransport.connectTo({
-      host: 'wgsl-analyzer.thissma.fr',
-      port: 443,
-      forceTls: true,
-    })
-      .then((transport) => {
-        const client = new monaco.lsp.MonacoLspClient(transport)
-        console.log('initialized lsp', client)
-      })
-      .catch((e) => {
-        console.error('failed to connect to wgsl_analyzer remote lsp', e)
-      })
+    onCleanup(() => editor.dispose())
 
-    // keeping track of the editor content avoids calling editor.setValue() when source()
-    // changed as a result of editing.
-    let currentContent = props.content
+    startLsp()
 
-    editor.getModel()!.onDidChangeContent(() => {
-      currentContent = editor.getValue()
-      props.onchange?.(currentContent)
+    createEffect(() => editor.setModel(props.model ?? null))
+
+    // flushes come from model.setValue(), i.e. from content the caller already has.
+    editor.onDidChangeModelContent((e) => {
+      if (!e.isFlush) props.onchange?.(editor.getValue())
     })
 
     createEffect(() => {
-      if (props.content !== currentContent) {
-        editor.setValue(props.content)
-        editor.setScrollTop(0)
-      }
-    })
-
-    createEffect(() => {
-      const model = editor.getModel()!
+      const model = props.model
+      if (!model) return
       const markers = (props.diagnostics ?? []).map((d) => {
         const p1 = model.getPositionAt(d.span.start)
         const p2 = model.getPositionAt(d.span.end)
@@ -99,10 +66,6 @@ export const Editor = (props: EditorProps) => {
       monaco.editor.setModelMarkers(model, 'wesl', markers)
     })
   }
-
-  onCleanup(() => {
-    if (model) model.dispose()
-  })
 
   return <div class="editor" ref={setupMonaco}></div>
 }

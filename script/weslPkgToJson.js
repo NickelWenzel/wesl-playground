@@ -1,23 +1,23 @@
 #!/usr/bin/env node
 
-import * as fs from 'fs'
-import * as path from 'path'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
 
 function readModule(dir, mod, files = {}) {
   const parent = path.dirname(dir)
   const base = path.basename(dir)
-  const file = path.join(parent, base + '.wesl')
+  const file = path.join(parent, `${base}.wesl`)
 
   console.log('processing module', mod)
 
   const fileStat = fs.statSync(file, { throwIfNoEntry: false })
-  if (fileStat && fileStat.isFile()) {
+  if (fileStat?.isFile()) {
     const src = fs.readFileSync(file, 'utf-8')
     files[mod] = src
   }
 
   const dirStat = fs.statSync(dir, { throwIfNoEntry: false })
-  if (dirStat && dirStat.isDirectory()) {
+  if (dirStat?.isDirectory()) {
     for (const entry of fs.readdirSync(dir)) {
       const name = path.basename(entry, '.wesl')
       const subDir = path.join(dir, name)
