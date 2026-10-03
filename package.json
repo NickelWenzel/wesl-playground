@@ -4,6 +4,7 @@
   "description": "",
   "type": "module",
   "scripts": {
+    "postinstall": "node script/copyWgslAnalyzerAssets.js",
     "start": "vite",
     "dev": "vite",
     "build": "vite build",
