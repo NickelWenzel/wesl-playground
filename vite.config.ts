@@ -12,6 +12,7 @@ const crossOriginIsolation = {
 }
 
 export default defineConfig({
+  optimizeDeps: { exclude: ['wesl-rs-web'] },
   plugins: [
     // devtools(),
     wasm(),

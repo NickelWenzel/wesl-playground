@@ -1,7 +1,7 @@
-import { Accessor, createEffect, createSignal, Setter } from 'solid-js'
-import { createStore, SetStoreFunction, Store } from 'solid-js/store'
-import { z } from 'zod'
-import { Options, Files, optionsSchema } from './state'
+import { type Accessor, createEffect, createSignal, type Setter } from 'solid-js'
+import { createStore, type SetStoreFunction, type Store } from 'solid-js/store'
+import type { z } from 'zod'
+import { type Options, type Files, optionsSchema } from './state'
 
 const urlParams = new URLSearchParams(window.location.search)
 
@@ -131,11 +131,12 @@ export function initOptions(): Options {
   const defaultOptions: Options = {
     command: 'Compile',
     // compile args
-    root: 'main',
+    main: 'main',
     mangler: 'escape',
     sourcemap: true,
     imports: true,
     condcomp: true,
+    visibility: true,
     generics: false,
     strip: false,
     lower: true,
@@ -143,8 +144,8 @@ export function initOptions(): Options {
     naga: false,
     lazy: true,
     keep: undefined,
-    keep_root: true,
-    mangle_root: false,
+    keep_main: true,
+    mangle_main: false,
     features_default: 'keep',
     features: {},
     // eval args
