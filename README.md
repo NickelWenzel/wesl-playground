@@ -15,8 +15,8 @@ Supported Implementations:
 
 ## Building
 
-- Install: `yarn install`
-- Build: `yarn build` or `yarn dev`
+- Install: `npm install`
+- Build: `npm build` or `npm dev`
 - (optional) Update the package `wesl-web` locally:
   - git clone the [`wesl-rs`][wesl-rs] repository somewhere
   - install [`wasm-pack`][wasm-pack]
