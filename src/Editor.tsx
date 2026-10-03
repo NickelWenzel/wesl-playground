@@ -17,26 +17,15 @@ createEffect(() => {
   })
 })
 
-// shows a model owned by the caller
-interface ModelProps {
+interface EditorProps {
+  // owned by the caller
   model: monaco.editor.ITextModel | undefined
-}
-
-// owns a model built from `content` at the absolute path `filepath`
-interface ContentProps {
-  content: string
-  filepath: string
-}
-
-type EditorProps = (ModelProps | ContentProps) & {
   diagnostics?: Diagnostic[]
   readonly?: true
   onchange?: (content: string) => void
 }
 
 export const Editor = (props: EditorProps) => {
-  let ownModel: monaco.editor.ITextModel | undefined
-
   function setupMonaco(elt: HTMLElement) {
     const editor = monaco.editor.create(elt, {
       model: null,
@@ -52,38 +41,19 @@ export const Editor = (props: EditorProps) => {
 
     startLsp()
 
-    const model = () => ('model' in props ? props.model : ownModel)
+    createEffect(() => editor.setModel(props.model ?? null))
 
-    if ('model' in props) {
-      createEffect(() => editor.setModel(props.model ?? null))
-    } else {
-      const uri = monaco.Uri.file(props.filepath)
-      ownModel =
-        monaco.editor.getModel(uri) ??
-        monaco.editor.createModel(props.content, 'wgsl', uri)
-      editor.setModel(ownModel)
-
-      // comparing with the model avoids calling editor.setValue() when content
-      // changed as a result of editing.
-      createEffect(() => {
-        if (props.content !== ownModel!.getValue()) {
-          editor.setValue(props.content)
-          editor.setScrollTop(0)
-        }
-      })
-    }
-
-    // flushes come from setValue(), i.e. from content the caller already has.
+    // flushes come from model.setValue(), i.e. from content the caller already has.
     editor.onDidChangeModelContent((e) => {
       if (!e.isFlush) props.onchange?.(editor.getValue())
     })
 
     createEffect(() => {
-      const current = model()
-      if (!current) return
+      const model = props.model
+      if (!model) return
       const markers = (props.diagnostics ?? []).map((d) => {
-        const p1 = current.getPositionAt(d.span.start)
-        const p2 = current.getPositionAt(d.span.end)
+        const p1 = model.getPositionAt(d.span.start)
+        const p2 = model.getPositionAt(d.span.end)
         return {
           startLineNumber: p1.lineNumber,
           startColumn: p1.column,
@@ -93,13 +63,9 @@ export const Editor = (props: EditorProps) => {
           severity: monaco.MarkerSeverity.Error,
         }
       })
-      monaco.editor.setModelMarkers(current, 'wesl', markers)
+      monaco.editor.setModelMarkers(model, 'wesl', markers)
     })
   }
-
-  onCleanup(() => {
-    if (ownModel) ownModel.dispose()
-  })
 
   return <div class="editor" ref={setupMonaco}></div>
 }

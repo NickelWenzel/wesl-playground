@@ -93,6 +93,20 @@ function createPackageModels(message: unknown) {
   }
 }
 
+/**
+ * The model of a bundled package module, created on first use. Package sources
+ * never change, so the models live as long as the page.
+ */
+export function packageModel(module: string) {
+  const source = packageSources[module]
+  if (source === undefined) return undefined
+  const uri = monaco.Uri.file(packagePath(module))
+  return (
+    monaco.editor.getModel(uri) ??
+    monaco.editor.createModel(source, 'wgsl', uri)
+  )
+}
+
 // files must be `.wesl`: in a `.wgsl` file, `import` is a syntax error.
 const tabUri = (name: string) => monaco.Uri.file(`${TABS}${name}.wesl`)
 
