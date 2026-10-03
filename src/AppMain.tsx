@@ -69,6 +69,15 @@ registerOpener({
   },
 })
 
+const outputModel = monaco.editor.createModel(
+  '',
+  'wgsl',
+  monaco.Uri.file('/output.wgsl'),
+)
+createEffect(() => {
+  if (outputModel.getValue() !== output()) outputModel.setValue(output())
+})
+
 const setSource = (source: string) =>
   setFiles(tab(), { name: files[tab()].name, source })
 
@@ -280,8 +289,7 @@ const RightPane = () => (
       <Switch>
         <Match when={rightTab() === 0}>
           <Editor
-            content={output()}
-            filepath="/output.wgsl"
+            model={outputModel}
             diagnostics={diagnostics().filter((d) => d.file === 'output')}
             readonly
           />
