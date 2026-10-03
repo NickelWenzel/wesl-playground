@@ -21,6 +21,12 @@ export default defineConfig({
   server: {
     port: 3000,
     headers: crossOriginIsolation,
+    fs: {
+      // here we allow the dev server to access files outside of the project root.
+      // This is currently only needed when using a `file:` dependency for `wesl-rs-web` or
+      // `wgsl-analyzer-web`, which would be linked to folders outside the root.
+      strict: false
+    }
   },
   preview: {
     headers: crossOriginIsolation,
