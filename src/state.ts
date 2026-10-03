@@ -26,12 +26,12 @@ export const optionsSchema = z.object({
   keep: z.array(z.string()).optional(),
   keep_main: z.boolean(),
   mangle_main: z.boolean(),
-  features: z.record(featureSchema),
+  features: z.record(z.string(), featureSchema),
   features_default: featureSchema,
   runtime: z.boolean(),
   expr: z.string(),
-  overrides: z.record(z.string()),
-  binding_structs: z.boolean(),
+  overrides: z.record(z.string(), z.string()),
+  // binding_structs: z.boolean(),
 })
 
 export const schema = z.object({

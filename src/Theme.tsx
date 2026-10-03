@@ -1,4 +1,4 @@
-import { IconTypes } from 'solid-icons'
+import type { IconTypes } from 'solid-icons'
 import { createEffect, createSignal } from 'solid-js'
 import {
   BsSun as LightIcon,

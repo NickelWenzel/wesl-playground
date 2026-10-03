@@ -43,10 +43,11 @@ export async function compileJs(files: Files, options: Options) {
     throw new Error(`wesl-js command not supported: ${options.command}`)
   }
 
-  const plugins = []
-  if (options.binding_structs) {
-    plugins.push(WeslJs.bindingStructsPlugin())
-  }
+  // the binding structs plugin was retired in 80b223f9bb9cfc38b72c5b99a310098e20506542
+  // const plugins = []
+  // if (options.binding_structs) {
+  //   plugins.push(WeslJs.bindingStructsPlugin())
+  // }
 
   const params: WeslJs.LinkParams = {
     weslSrc: Object.fromEntries(
@@ -58,7 +59,7 @@ export async function compileJs(files: Files, options: Options) {
       Object.entries(options.features).map(([k, v]) => [k, v === 'enable']),
     ),
     // libs?: WgslBundle[];
-    config: { plugins },
+    // config: { plugins },
     // constants?: Record<string, string | number>;
     mangler:
       options.mangler === 'minimal'

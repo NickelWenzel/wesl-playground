@@ -17,7 +17,9 @@ const FileList = () => (
       <For each={filenames}>
         {(f) => (
           <li>
-            <a on:click={() => setSelected(f)}>{f}</a>
+            <button class="link" type="button" on:click={() => setSelected(f)}>
+              {f}
+            </button>
           </li>
         )}
       </For>
@@ -29,7 +31,7 @@ const FilePreview = (props: { file: string }) => (
   <div class="preview">
     <div class="preview-header">
       <span>file: {props.file}</span>
-      <button on:click={() => setSelected(null)}>
+      <button type="button" on:click={() => setSelected(null)}>
         <CloseIcon />
       </button>
     </div>

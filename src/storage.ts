@@ -1,4 +1,9 @@
-import { type Accessor, createEffect, createSignal, type Setter } from 'solid-js'
+import {
+  type Accessor,
+  createEffect,
+  createSignal,
+  type Setter,
+} from 'solid-js'
 import { createStore, type SetStoreFunction, type Store } from 'solid-js/store'
 import type { z } from 'zod'
 import { type Options, type Files, optionsSchema } from './state'
@@ -6,7 +11,7 @@ import { type Options, type Files, optionsSchema } from './state'
 const urlParams = new URLSearchParams(window.location.search)
 
 export function getLocal<T>(name: string, init: T, schema?: z.Schema<T>): T {
-  const VERSION = '5'
+  const VERSION = '6'
   const version = localStorage.getItem('version')
   const storageItem = localStorage.getItem(name)
 
@@ -28,7 +33,7 @@ export function getLocal<T>(name: string, init: T, schema?: z.Schema<T>): T {
 export function createLocalStore<T extends object>(
   name: string,
   init: T,
-  schema: z.Schema<T>,
+  schema: z.ZodType<T>,
 ): [Store<T>, SetStoreFunction<T>] {
   const value = getLocal(name, init, schema)
 
@@ -44,7 +49,7 @@ export function createLocalStore<T extends object>(
 export function createLocalSignal<T>(
   name: string,
   init: T,
-  schema?: z.Schema<T>,
+  schema?: z.ZodType<T>,
 ): [Accessor<T>, Setter<T>] {
   const value = getLocal(name, init, schema)
 
@@ -152,7 +157,7 @@ export function initOptions(): Options {
     runtime: false,
     expr: '',
     overrides: {},
-    binding_structs: false,
+    // binding_structs: false,
   }
 
   const urlOptions: Partial<Options> = Object.fromEntries(
