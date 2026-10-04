@@ -36,11 +36,10 @@ export const TabButton = (props: TabButtonProps) => {
   }
 
   return (
-    <div
+    <button
+      type="button"
       class="tab-btn"
       classList={{ selected: props.selected }}
-      role="button"
-      tabindex="0"
       onclick={props.onselect}
     >
       <div
@@ -53,11 +52,11 @@ export const TabButton = (props: TabButtonProps) => {
         {props.name}
       </div>
       <Show when={props.closable}>
-        <button onclick={onclose}>
-          <CloseIcon />
+        <button type="button" onclick={onclose}>
+          <CloseIcon stroke-width="0" />
         </button>
       </Show>
-    </div>
+    </button>
   )
 }
 
@@ -110,9 +109,9 @@ export const Tabs = (props_: TabProps) => {
         )}
       </For>
       <Show when={props.closable}>
-        <div class="tab-btn" role="button" tabindex="0">
-          <button tabindex="0" onclick={props.oncreate}>
-            <AddIcon />
+        <div class="tab-btn" tabindex="0">
+          <button type="button" onclick={props.oncreate}>
+            <AddIcon stroke-width="0" />
           </button>
         </div>
       </Show>

@@ -1,8 +1,8 @@
 import {
   createEffect,
   createSignal,
-  JSX,
-  ParentComponent,
+  type JSX,
+  type ParentComponent,
   Show,
 } from 'solid-js'
 import { Transition } from 'solid-transition-group'
@@ -38,6 +38,7 @@ export const DropButton: ParentComponent<{
   return (
     <div ref={self} class={open() ? 'visible' : 'hidden'}>
       <button
+        type="button"
         classList={{ 'dropdown-button': true, active: open() }}
         onclick={() => setOpen(!open())}
       >

@@ -1,6 +1,6 @@
-import { Options, Files } from './state'
+import type { Files, Options } from './state'
 
-import InitWeslRs, * as WeslRs from './wesl-web/wesl_web'
+import InitWeslRs, * as WeslRs from 'wesl-rs-web'
 import * as WeslJs from 'wesl'
 
 import bevy_wgsl from './packages/bevy_wgsl.json'
@@ -14,7 +14,7 @@ export async function compileRs(files: Files, options: Options) {
     bevy_wgsl,
     lygia_wgsl,
     Object.fromEntries(
-      files.map(({ name, source }) => ['package::' + name, source]),
+      files.map(({ name, source }) => [`package::${name}`, source]),
     ),
   )
 
@@ -22,7 +22,7 @@ export async function compileRs(files: Files, options: Options) {
 
   const params = {
     ...options,
-    root: 'package::' + options.root,
+    main: `package::${options.main}`,
     files: flatFiles,
   } as WeslRs.Command
 
@@ -40,25 +40,26 @@ export async function compileRs(files: Files, options: Options) {
 
 export async function compileJs(files: Files, options: Options) {
   if (options.command !== 'Compile') {
-    throw new Error('wesl-js command not supported: ' + options.command)
+    throw new Error(`wesl-js command not supported: ${options.command}`)
   }
 
-  const plugins = []
-  if (options.binding_structs) {
-    plugins.push(WeslJs.bindingStructsPlugin())
-  }
+  // the binding structs plugin was retired in 80b223f9bb9cfc38b72c5b99a310098e20506542
+  // const plugins = []
+  // if (options.binding_structs) {
+  //   plugins.push(WeslJs.bindingStructsPlugin())
+  // }
 
   const params: WeslJs.LinkParams = {
     weslSrc: Object.fromEntries(
-      files.map(({ name, source }) => ['./' + name + '.wesl', source]),
+      files.map(({ name, source }) => [`./${name}.wesl`, source]),
     ),
-    rootModuleName: './' + options.root + '.wesl',
+    rootModuleName: `./${options.main}.wesl`,
     // debugWeslRoot?: string;
     conditions: Object.fromEntries(
       Object.entries(options.features).map(([k, v]) => [k, v === 'enable']),
     ),
     // libs?: WgslBundle[];
-    config: { plugins },
+    // config: { plugins },
     // constants?: Record<string, string | number>;
     mangler:
       options.mangler === 'minimal'
@@ -89,6 +90,6 @@ export async function compile(files: Files, options: Options, linker: string) {
   } else if (linker === 'wesl-js') {
     return compileJs(files, options)
   } else {
-    throw new Error('unsupported linker ' + linker)
+    throw new Error(`unsupported linker ${linker}`)
   }
 }

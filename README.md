@@ -15,14 +15,13 @@ Supported Implementations:
 
 ## Building
 
-- Install: `yarn install`
-- Build: `yarn build` or `yarn dev`
-- Update crate `wesl-web`:
+- Install: `npm install`
+- Build: `npm build` or `npm dev`
+- (optional) Update the package `wesl-web` locally:
   - git clone the [`wesl-rs`][wesl-rs] repository somewhere
   - install [`wasm-pack`][wasm-pack]
-  - compile the `wasm-pack` crate in `wesl-rs/crates/wesl-web`:
-    - release `wasm-pack build path/to/wesl/web --release --target web --out-dir path/to/wesl-playground/src/wesl-web`
-    - development `wasm-pack build path/to/wesl/web --dev --target web --out-dir path/to/wesl-playground/src/wesl-web --features debug`
+  - compile the package from the `wesl-rs` repo: `cargo xtask wesl-web --release` (remove `--release` for debug builds)
+  - change the dependency in package.json to `file:/path/to/wesl-rs/crate/wesl-web/`
 
 ## Contributing
 

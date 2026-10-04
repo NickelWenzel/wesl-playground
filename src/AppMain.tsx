@@ -16,7 +16,7 @@ import {
 } from 'solid-icons/bs'
 
 import './style.scss'
-import * as wesl from './wesl-web/wesl_web'
+import type * as WeslRs from 'wesl-rs-web'
 import './app'
 import { DropButton } from './DropButton'
 import WeslLogo from './assets/logo/logo-horizontal-light.svg'
@@ -52,7 +52,7 @@ const [linker, setLinker] = createLocalSignal('linker', initLinker())
 const [autorun, setAutorun] = createSignal(true)
 const [tab, setTab] = createSignal(0)
 const [rightTab, setRightTab] = createSignal(0)
-const [diagnostics, setDiagnostics] = createSignal<wesl.Diagnostic[]>([])
+const [diagnostics, setDiagnostics] = createSignal<WeslRs.Diagnostic[]>([])
 const [output, setOutput] = createSignal('')
 const [message, setMessage] = createSignal(DEFAULT_MESSAGE)
 
@@ -104,7 +104,7 @@ createEffect(() => {
 
 // ensure that there is always at least 1 tab open.
 createEffect(() => {
-  if (files.length == 0) {
+  if (files.length === 0) {
     setFiles([
       { name: 'main', source: 'fn main() -> u32 {\n    return 0u;\n}\n' },
     ])
@@ -131,9 +131,10 @@ const newFile = () => {
 }
 
 const delFile = (i: number) => {
-  let filename = files[i].name
-  alert(`Confirm deletion of ${filename}?`)
-  setFiles((files) => removeIndex(files, i))
+  const filename = files[i].name
+  if (confirm(`Confirm deletion of ${filename}?`)) {
+    setFiles((files) => removeIndex(files, i))
+  }
 }
 
 const renameFile = (i: number, name: string) => {
@@ -216,15 +217,15 @@ const Header = () => (
       <img src={dark() ? WeslLogoDark : WeslLogo} alt="WESL website" />
     </a>
     <h2>Playground</h2>
-    <button class="button" id="btn-run" onclick={run}>
+    <button type="button" class="button" id="btn-run" onclick={run}>
       <RunIcon class="icon" />
       Run
     </button>
-    <button class="button" id="btn-reset" onclick={reset}>
+    <button type="button" class="button" id="btn-reset" onclick={reset}>
       <ResetIcon class="icon" />
       reset
     </button>
-    <button class="button" id="btn-share" onclick={share}>
+    <button type="button" class="button" id="btn-share" onclick={share}>
       <ShareIcon class="icon" />
       share
     </button>

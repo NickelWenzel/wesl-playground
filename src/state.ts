@@ -11,11 +11,12 @@ export const featureSchema = z.enum(['enable', 'disable', 'keep', 'error'])
 
 export const optionsSchema = z.object({
   command: z.string(),
-  root: z.string(),
+  main: z.string(),
   mangler: z.string(),
   sourcemap: z.boolean(),
   imports: z.boolean(),
   condcomp: z.boolean(),
+  visibility: z.boolean(),
   generics: z.boolean(),
   strip: z.boolean(),
   lower: z.boolean(),
@@ -23,14 +24,14 @@ export const optionsSchema = z.object({
   naga: z.boolean(),
   lazy: z.boolean(),
   keep: z.array(z.string()).optional(),
-  keep_root: z.boolean(),
-  mangle_root: z.boolean(),
-  features: z.record(featureSchema),
+  keep_main: z.boolean(),
+  mangle_main: z.boolean(),
+  features: z.record(z.string(), featureSchema),
   features_default: featureSchema,
   runtime: z.boolean(),
   expr: z.string(),
-  overrides: z.record(z.string()),
-  binding_structs: z.boolean(),
+  overrides: z.record(z.string(), z.string()),
+  // binding_structs: z.boolean(),
 })
 
 export const schema = z.object({

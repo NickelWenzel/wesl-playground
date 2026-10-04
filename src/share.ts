@@ -1,5 +1,5 @@
 import { createSignal, onCleanup, onMount } from 'solid-js'
-import { filesSchema, partialSchema, schema, State } from './state'
+import { filesSchema, partialSchema, schema, type State } from './state'
 import { getLocal, initFiles, initLinker, initOptions } from './storage'
 
 // TODO: move that to wesl-lang.dev
@@ -70,7 +70,7 @@ async function loadSharedState(hash: string): Promise<State> {
 }
 
 function clearSharedState() {
-  let hash = getHashFromUrl()
+  const hash = getHashFromUrl()
   if (hash) {
     pushHistory(null)
     console.debug('cleared shared state', hash)

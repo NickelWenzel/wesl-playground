@@ -2,9 +2,7 @@ import * as monaco from 'monaco-editor'
 import editorWorker from 'monaco-editor/editor/editor.worker?worker'
 
 self.MonacoEnvironment = {
-  getWorker: function (_workerId, _label) {
-    return new editorWorker()
-  },
+  getWorker: (_workerId, _label) => new editorWorker(),
 }
 
 let showResource: (resource: monaco.Uri) => boolean = () => false

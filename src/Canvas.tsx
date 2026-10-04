@@ -31,7 +31,7 @@ export function Render(props: RenderProps) {
   let uniformBuffer: GPUBuffer
   let bindGroup: GPUBindGroup
   let frameHandle = 0
-  let mouse = { x: 0, y: 0 }
+  const mouse = { x: 0, y: 0 }
   let time = 0
 
   const [message, setMessage] = createSignal('')
@@ -121,18 +121,20 @@ export function Render(props: RenderProps) {
   }
 
   function clear() {
-    const commandEncoder = device.createCommandEncoder();
+    const commandEncoder = device.createCommandEncoder()
     const pass = commandEncoder.beginRenderPass({
-      colorAttachments: [{
-        view: context.getCurrentTexture().createView(),
-        loadOp: 'clear',
-        storeOp: 'store',
-        clearValue: [0, 0, 0, 1],
-      }]
-    });
+      colorAttachments: [
+        {
+          view: context.getCurrentTexture().createView(),
+          loadOp: 'clear',
+          storeOp: 'store',
+          clearValue: [0, 0, 0, 1],
+        },
+      ],
+    })
 
-    pass.end();
-    device.queue.submit([commandEncoder.finish()]);
+    pass.end()
+    device.queue.submit([commandEncoder.finish()])
   }
 
   function frame() {
@@ -181,14 +183,11 @@ export function Render(props: RenderProps) {
       }
       if (!navigator.gpu) {
         setMessage('WebGPU is not supported in your navigator')
-      }
-      else if (!device) {
+      } else if (!device) {
         setMessage('WebGPU is not initialized')
-      }
-      else if (!props.frag) {
+      } else if (!props.frag) {
         setMessage('Shader compilation error')
-      }
-      else {
+      } else {
         setMessage('Updating shader…')
         clear()
         await createPipeline(props.frag, props.entrypoint)

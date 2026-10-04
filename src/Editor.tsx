@@ -2,7 +2,7 @@ import monaco from './monaco'
 import { startLsp } from './lsp'
 
 import { createEffect, onCleanup } from 'solid-js'
-import { Diagnostic } from './wesl-web/wesl_web'
+import type { Diagnostic } from 'wesl-rs-web'
 import { dark } from './Theme'
 
 // update dark/light monaco theme

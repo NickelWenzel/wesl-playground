@@ -1,6 +1,6 @@
-import { Accessor, For, Setter, Show } from 'solid-js'
+import { type Accessor, For, type Setter, Show } from 'solid-js'
 import type { Options, Files } from './state'
-import { SetStoreFunction } from 'solid-js/store'
+import type { SetStoreFunction } from 'solid-js/store'
 
 type Feature = 'enable' | 'disable' | 'keep' | 'error'
 
@@ -33,7 +33,7 @@ function strEntrypoints(entrypoints: string[] | undefined): string {
   return (entrypoints ?? []).join(', ')
 }
 function parseEntrypoints(str: string): string[] | undefined {
-  let res = str
+  const res = str
     .split(',')
     .map((s) => s.trim())
     .filter((s) => s !== '')
@@ -63,6 +63,7 @@ export const WeslJsFeatures = (props: OptionsProps) => {
 
   return (
     <>
+      {/*
       <span>Features</span>
       <label>
         <input
@@ -74,12 +75,13 @@ export const WeslJsFeatures = (props: OptionsProps) => {
         />
         <span>binding structs</span>
       </label>
+      */}
       <span>Configuration</span>
       <label>
         <span>root file</span>
         <select
-          value={props.options.root}
-          onchange={(e) => props.setOptions('root', e.currentTarget.value)}
+          value={props.options.main}
+          onchange={(e) => props.setOptions('main', e.currentTarget.value)}
         >
           <For each={props.files}>
             {(file) => <option value={file.name}>{file.name}</option>}
@@ -189,8 +191,8 @@ export const WeslRsFeatures = (props: OptionsProps) => {
       <label>
         <span>root file</span>
         <select
-          value={props.options.root}
-          onchange={(e) => props.setOptions('root', e.currentTarget.value)}
+          value={props.options.main}
+          onchange={(e) => props.setOptions('main', e.currentTarget.value)}
         >
           <For each={props.files}>
             {(file) => <option value={file.name}>{file.name}</option>}
@@ -212,9 +214,9 @@ export const WeslRsFeatures = (props: OptionsProps) => {
       <label>
         <input
           type="checkbox"
-          checked={props.options.mangle_root}
+          checked={props.options.mangle_main}
           onchange={(e) =>
-            props.setOptions('mangle_root', e.currentTarget.checked)
+            props.setOptions('mangle_main', e.currentTarget.checked)
           }
         />
         <span>mangle root declarations</span>
@@ -252,13 +254,13 @@ export const WeslRsFeatures = (props: OptionsProps) => {
       </label>
       <label
         classList={{
-          disabled: !props.options.strip || props.options.keep_root,
+          disabled: !props.options.strip || props.options.keep_main,
         }}
       >
         <span>strip: keep declarations</span>
         <input
           type="text"
-          disabled={!props.options.strip || props.options.keep_root}
+          disabled={!props.options.strip || props.options.keep_main}
           value={strEntrypoints(props.options.keep)}
           onchange={(e) =>
             props.setOptions('keep', () =>
@@ -271,9 +273,9 @@ export const WeslRsFeatures = (props: OptionsProps) => {
         <input
           type="checkbox"
           disabled={!props.options.strip}
-          checked={props.options.keep_root}
+          checked={props.options.keep_main}
           onchange={(e) =>
-            props.setOptions('keep_root', e.currentTarget.checked)
+            props.setOptions('keep_main', e.currentTarget.checked)
           }
         />
         <span>strip: keep root declarations</span>
